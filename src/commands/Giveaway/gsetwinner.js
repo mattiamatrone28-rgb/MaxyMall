@@ -142,7 +142,7 @@ export default {
                 const newRow = createGiveawayButtons(true);
 
                 await message.edit({
-                    content: "🏆 **WINNER** 🏆",
+                    content: "🏆 **VINCITORE** 🏆",
                     embeds: [newEmbed],
                     components: [newRow],
                 });
@@ -162,11 +162,11 @@ export default {
 
             if (existingPingMsg) {
                 await existingPingMsg.edit({
-                    content: `🏆 **WINNER** 🏆 CONGRATULATIONS ${winnerMention}! You have been declared the winner of the **${giveaway.prize}** giveaway! Please contact the host <@${giveaway.hostId}> to claim your prize.`,
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> to claim your prize.`,
                 });
             } else {
                 const newPingMsg = await channel.send({
-                    content: `🏆 **WINNER** 🏆 CONGRATULATIONS ${winnerMention}! You have been declared the winner of the **${giveaway.prize}** giveaway! Please contact the host <@${giveaway.hostId}> to claim your prize.`,
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> to claim your prize.`,
                 });
                 updatedGiveaway.winnerPingMessageId = newPingMsg.id;
                 await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
