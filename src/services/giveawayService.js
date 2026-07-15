@@ -154,6 +154,11 @@ export function createGiveawayEmbed(giveaway, status, winners = []) {
             embed.addFields({ name: '⏰ Ends', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false });
         }
 
+        // Add image if available
+        if (giveaway.imageUrl) {
+            embed.setImage(giveaway.imageUrl);
+        }
+
         embed.setTimestamp();
         
         return embed;
