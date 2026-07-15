@@ -13,11 +13,11 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
         .setName("gsetwinner")
-        .setDescription("Manually sets the winner of an ended giveaway, bypassing random selection.")
+        .setDescription("Manually sets the winner of a giveaway, during or after it ends.")
         .addStringOption((option) =>
             option
                 .setName("messageid")
-                .setDescription("The message ID of the ended giveaway.")
+                .setDescription("The message ID of the giveaway.")
                 .setRequired(true),
         )
         .addUserOption((option) =>
@@ -88,15 +88,6 @@ export default {
                 );
             }
 
-            if (!giveaway.isEnded && !giveaway.ended) {
-                throw new TitanBotError(
-                    `Giveaway still active: ${messageId}`,
-                    ErrorTypes.VALIDATION,
-                    "This giveaway is still active. Please use `/gend` to end it first, then use `/gsetwinner`.",
-                    { messageId, status: 'active' }
-                );
-            }
-
             const newWinners = [chosenUser.id];
 
             const updatedGiveaway = {
@@ -105,6 +96,8 @@ export default {
                 rerolledAt: new Date().toISOString(),
                 rerolledBy: interaction.user.id,
                 manualWinnerSet: true,
+                isEnded: true,
+                ended: true,
             };
 
             const channel = await interaction.client.channels.fetch(
