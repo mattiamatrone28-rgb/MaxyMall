@@ -73,7 +73,7 @@ export default {
             const participants = [...new Set(giveaway.participants || [])];
 
             const embed = new EmbedBuilder()
-                .setColor(getColor())
+                .setColor(getColor("giveaway.active"))
                 .setTitle(`🎉 Participants — ${giveaway.prize || 'Mystery Prize!'}`)
                 .setFooter({ text: `Message ID: ${messageId}` })
                 .setTimestamp();
