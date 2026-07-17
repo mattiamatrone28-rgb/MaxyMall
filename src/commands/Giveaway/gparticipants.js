@@ -108,7 +108,7 @@ export default {
 
             logger.debug(`Participants list viewed for giveaway ${messageId} by ${interaction.user.tag}`);
 
-            return InteractionHelper.safeReply(interaction, {
+            await InteractionHelper.safeReply(interaction, {
                 embeds: [embed],
                 flags: MessageFlags.Ephemeral,
             });
