@@ -46,6 +46,18 @@ export default {
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(false),
         )
+        .addAttachmentOption((option) =>
+            option
+                .setName("image")
+                .setDescription("An image to display on the giveaway embed (optional).")
+                .setRequired(false),
+        )
+        .addStringOption((option) =>
+            option
+                .setName("image_url")
+                .setDescription("Alternatively, a direct URL to an image (optional).")
+                .setRequired(false),
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
     async execute(interaction) {
@@ -76,6 +88,25 @@ export default {
             const prize = interaction.options.getString("prize");
             const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
 
+            // Immagine: priorità all'allegato, altrimenti si usa l'URL fornito
+            const imageAttachment = interaction.options.getAttachment("image");
+            const imageUrlOption = interaction.options.getString("image_url");
+            let imageUrl = null;
+
+            if (imageAttachment) {
+                if (!imageAttachment.contentType || !imageAttachment.contentType.startsWith("image/")) {
+                    throw new TitanBotError(
+                        'Uploaded attachment is not an image',
+                        ErrorTypes.VALIDATION,
+                        'The file you attached is not a valid image.',
+                        { contentType: imageAttachment.contentType }
+                    );
+                }
+                imageUrl = imageAttachment.url;
+            } else if (imageUrlOption) {
+                imageUrl = imageUrlOption.trim();
+            }
+
             const durationMs = parseDuration(durationString);
             validateWinnerCount(winnerCount);
             const prizeName = validatePrize(prize);
@@ -103,6 +134,7 @@ export default {
                 participants: [],
                 isEnded: false,
                 ended: false,
+                imageUrl: imageUrl,
                 createdAt: new Date().toISOString()
             };
 
