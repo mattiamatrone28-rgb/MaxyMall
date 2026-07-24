@@ -96,8 +96,6 @@ export default {
                 rerolledAt: new Date().toISOString(),
                 rerolledBy: interaction.user.id,
                 manualWinnerSet: true,
-                isEnded: true,
-                ended: true,
             };
 
             const channel = await interaction.client.channels.fetch(
@@ -162,11 +160,11 @@ export default {
 
             if (existingPingMsg) {
                 await existingPingMsg.edit({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per ricevere il tuo premio.`,
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per r[...]
                 });
             } else {
                 const newPingMsg = await channel.send({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per ricevere il tuo premio.`,
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per r[...]
                 })
                 updatedGiveaway.winnerPingMessageId = newPingMsg.id;
                 await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
