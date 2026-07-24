@@ -131,14 +131,38 @@ export default {
             if (winners.length > 0) {
                 const winnerMentions = winners
                     .map((id) => `<@${id}>`)
-                    .join(",");
+                    .join(", ");
                 const winnerPingMsg = await channel.send({
                     content: `🎉 CONGRATULATIONS ${winnerMentions}! You won the **${updatedGiveaway.prize}** giveaway! Please contact the host <@${updatedGiveaway.hostId}> to claim your prize.`,
+                    allowedMentions: { users: winners },
                 });
                 updatedGiveaway.winnerPingMessageId = winnerPingMsg.id;
                 await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
 
                 logger.info(`Giveaway ended with ${winners.length} winner(s): ${messageId}`);
+
+                // Invia DM ai vincitori
+                const dmResults = { success: [], failed: [] };
+                for (const winnerId of winners) {
+                    try {
+                        const user = await interaction.client.users.fetch(winnerId);
+                        await user.send({
+                            content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host <@${updatedGiveaway.hostId}>.`,
+                        });
+                        dmResults.success.push(winnerId);
+                    } catch (dmError) {
+                        logger.warn(`Could not send DM to winner ${winnerId}: ${dmError.message}`);
+                        dmResults.failed.push(winnerId);
+                    }
+                }
+
+                // Salviamo un riassunto delle notifiche DM (opzionale)
+                try {
+                    updatedGiveaway.dmNotified = dmResults.success;
+                    await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
+                } catch (saveErr) {
+                    logger.debug('Could not save DM notification state on giveaway:', saveErr);
+                }
 
                 try {
                     await logEvent({
@@ -163,6 +187,16 @@ export default {
                                 {
                                     name: 'Entries',
                                     value: endResult.participantCount.toString(),
+                                    inline: true
+                                },
+                                {
+                                    name: 'DMs sent',
+                                    value: `${dmResults.success.length}`,
+                                    inline: true
+                                },
+                                {
+                                    name: 'DMs failed',
+                                    value: `${dmResults.failed.length}`,
                                     inline: true
                                 }
                             ]
