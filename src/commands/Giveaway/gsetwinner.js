@@ -3,10 +3,6 @@ import { successEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { TitanBotError, ErrorTypes, handleInteractionError } from '../../utils/errorHandler.js';
 import { getGuildGiveaways, saveGiveaway } from '../../utils/giveaways.js';
-import {
-    createGiveawayEmbed,
-    createGiveawayButtons
-} from '../../services/giveawayService.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -98,80 +94,14 @@ export default {
                 manualWinnerSet: true,
             };
 
-            const channel = await interaction.client.channels.fetch(
-                giveaway.channelId,
-            ).catch(err => {
-                logger.warn(`Could not fetch channel ${giveaway.channelId}:`, err.message);
-                return null;
-            });
-
-            if (!channel || !channel.isTextBased()) {
-
-                await saveGiveaway(
-                    interaction.client,
-                    interaction.guildId,
-                    updatedGiveaway,
-                );
-
-                logger.warn(`Could not find channel for giveaway ${messageId}, but saved manual winner to database`);
-
-                return InteractionHelper.safeReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            "Winner Set",
-                            `<@${chosenUser.id}> has been set as the winner and saved to the database. Could not find channel to announce.`,
-                        ),
-                    ],
-                    flags: MessageFlags.Ephemeral,
-                });
-            }
-
-            const message = await channel.messages
-                .fetch(messageId)
-                .catch(err => {
-                    logger.warn(`Could not fetch message ${messageId}:`, err.message);
-                    return null;
-                });
-
-            const winnerMention = `<@${chosenUser.id}>`;
-
-            if (message) {
-                // Do NOT mark the giveaway as ended here. Show the manual winner while keeping the giveaway active.
-                const newEmbed = createGiveawayEmbed(updatedGiveaway, "manual", newWinners);
-                const newRow = createGiveawayButtons(false);
-
-                await message.edit({
-                    content: "🏆 **VINCITORE (MANUALE)** 🏆",
-                    embeds: [newEmbed],
-                    components: [newRow],
-                });
-            } else {
-                logger.warn(`Could not find message ${messageId} for giveaway, announcing without editing it`);
-            }
-
+            // Save the manual winner to the database but DO NOT announce it yet.
             await saveGiveaway(
                 interaction.client,
                 interaction.guildId,
                 updatedGiveaway,
             );
 
-            const existingPingMsg = giveaway.winnerPingMessageId
-                ? await channel.messages.fetch(giveaway.winnerPingMessageId).catch(() => null)
-                : null;
-
-            if (existingPingMsg) {
-                await existingPingMsg.edit({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Per favore, contatta l'host <@${giveaway.hostId}> per richiedere il premio.`,
-                });
-            } else {
-                const newPingMsg = await channel.send({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Per favore, contatta l'host <@${giveaway.hostId}> per richiedere il premio.`,
-                });
-                updatedGiveaway.winnerPingMessageId = newPingMsg.id;
-                await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
-            }
-
-            logger.info(`Giveaway winner manually set: ${messageId} -> ${chosenUser.id}`);
+            logger.info(`Giveaway manual winner saved (deferred announcement): ${messageId} -> ${chosenUser.id}`);
 
             try {
                 await logEvent({
@@ -179,7 +109,7 @@ export default {
                     guildId: interaction.guildId,
                     eventType: EVENT_TYPES.GIVEAWAY_REROLL,
                     data: {
-                        description: `Giveaway winner manually set: ${giveaway.prize}`,
+                        description: `Giveaway winner manually set (deferred): ${giveaway.prize}`,
                         channelId: giveaway.channelId,
                         userId: interaction.user.id,
                         fields: [
@@ -190,7 +120,7 @@ export default {
                             },
                             {
                                 name: 'Winner',
-                                value: winnerMention,
+                                value: `<@${chosenUser.id}>`,
                                 inline: false
                             },
                             {
@@ -205,11 +135,15 @@ export default {
                 logger.debug('Error logging manual giveaway winner event:', logError);
             }
 
+            // Reply to the moderator that the manual winner has been saved and will be announced when the giveaway ends.
+            const channelMention = `<#${giveaway.channelId}>`;
+            const winnerMention = `<@${chosenUser.id}>`;
+
             return InteractionHelper.safeReply(interaction, {
                 embeds: [
                     successEmbed(
-                        "Winner Set ✅",
-                        `Successfully set ${winnerMention} as the winner of **${giveaway.prize}** in ${channel}.`,
+                        "Winner Saved ✅",
+                        `Successfully set ${winnerMention} as the manual winner for the giveaway (message ID: ${messageId}) in ${channelMention}. The winner will be announced publicly when the giveaway ends.`,
                     ),
                 ],
                 flags: MessageFlags.Ephemeral,
