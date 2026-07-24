@@ -389,7 +389,7 @@ export async function checkGiveaways(client) {
         }
 
         if (winners.length > 0) {
-          const winnerAnnouncement = `🎉 Congratulations ${winnerMentions}! You won the **${giveaway.prize || 'giveaway'}**! Please contact <@${giveaway.hostId}> to claim your prize.`;
+          const winnerAnnouncement = `🎉 Congratulazioni ${winnerMentions}! Hai vinto il **${giveaway.prize || 'giveaway'}**! Perfavore contatta <@${giveaway.hostId}> per ritirare il tuo premio.`;
           const winnerPingMsg = await channel.send({ content: winnerAnnouncement });
           giveaway.winnerPingMessageId = winnerPingMsg.id;
           await markGiveawayEnded(client, giveawayId, giveaway);
@@ -400,21 +400,21 @@ export async function checkGiveaways(client) {
               guildId,
               eventType: EVENT_TYPES.GIVEAWAY_WINNER,
               data: {
-                description: `Giveaway ended with ${winners.length} winner(s)`,
+                description: `Giveaway terminato con ${winners.length} vincitore(i)`,
                 channelId: channel.id,
                 fields: [
                   {
-                    name: '🎁 Prize',
-                    value: giveaway.prize || 'Mystery Prize!',
+                    name: '🎁 Premio',
+                    value: giveaway.prize || 'Premio Misterioso!',
                     inline: true
                   },
                   {
-                    name: '🏆 Winners',
+                    name: '🏆 Vincitori',
                     value: winners.map(id => `<@${id}>`).join(', '),
                     inline: false
                   },
                   {
-                    name: '👥 Entries',
+                    name: '👥 Partecipanti',
                     value: participants.length.toString(),
                     inline: true
                   }
@@ -425,7 +425,7 @@ export async function checkGiveaways(client) {
             logger.debug('Error logging giveaway winner:', error);
           }
         } else {
-          await channel.send({ content: `The giveaway for **${giveaway.prize}** has ended with no valid entries.` });
+          await channel.send({ content: `Il giveaway per **${giveaway.prize}** è terminato senza partecipanti validi.` });
         }
 
         logger.info(`Ended giveaway ${messageId} in guild ${guildId}`);
