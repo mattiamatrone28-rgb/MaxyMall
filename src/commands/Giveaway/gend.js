@@ -123,7 +123,7 @@ export default {
             const newRow = createGiveawayButtons(true);
 
             await message.edit({
-                content: "🎉 **GIVEAWAY ENDED** 🎉",
+                content: "🎉 **GIVEAWAY TERMINATO** 🎉",
                 embeds: [newEmbed],
                 components: [newRow],
             });
