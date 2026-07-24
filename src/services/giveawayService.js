@@ -217,6 +217,25 @@ export function createGiveawayButtons(ended = false) {
     }
 }
 
+// Se un vincitore è stato impostato manualmente dallo staff (via /gforcewinner),
+// va usato al posto dell'estrazione casuale. Il chiamante è responsabile di
+// dichiarare esplicitamente nel messaggio finale che si tratta di una scelta dello staff.
+export function resolveWinners(giveaway, participants, winnerCount) {
+    if (Array.isArray(giveaway?.forcedWinnerIds) && giveaway.forcedWinnerIds.length > 0) {
+        return {
+            winners: giveaway.forcedWinnerIds.slice(0, winnerCount),
+            staffSelected: true,
+            selectedBy: giveaway.forcedBy || null,
+        };
+    }
+
+    return {
+        winners: selectWinners(participants, winnerCount),
+        staffSelected: false,
+        selectedBy: null,
+    };
+}
+
 export function selectWinners(participants, winnerCount) {
     if (!Array.isArray(participants) || participants.length === 0) {
         return [];
@@ -291,24 +310,27 @@ export async function endGiveaway(client, giveaway, guildId, endedBy) {
         }
 
         const participants = giveaway.participants || [];
-        const winners = selectWinners(participants, giveaway.winnerCount || 1);
+        const { winners, staffSelected, selectedBy } = resolveWinners(giveaway, participants, giveaway.winnerCount || 1);
 
         const updatedGiveaway = {
             ...giveaway,
             ended: true,
             isEnded: true,
             winnerIds: winners,
+            staffSelected,
+            forcedBy: staffSelected ? selectedBy : giveaway.forcedBy,
             endedAt: new Date().toISOString(),
             endedBy: endedBy,
             participantCount: participants.length
         };
 
-        logger.info(`Ending giveaway ${giveaway.messageId}: selected ${winners.length} winners from ${participants.length} entries`);
+        logger.info(`Ending giveaway ${giveaway.messageId}: ${staffSelected ? 'staff-selected' : 'randomly selected'} ${winners.length} winners from ${participants.length} entries`);
 
         return {
             success: true,
             giveaway: updatedGiveaway,
             winners: winners,
+            staffSelected,
             participantCount: participants.length
         };
     } catch (error) {
@@ -365,7 +387,7 @@ export async function checkGiveaways(client) {
         }
 
         const participants = giveaway.participants || [];
-        const winners = selectWinners(participants, giveaway.winnerCount || 1);
+        const { winners, staffSelected, selectedBy } = resolveWinners(giveaway, participants, giveaway.winnerCount || 1);
 
         const winnerMentions = winners.length > 0
           ? winners.map(id => `<@${id}>`).join(', ')
@@ -381,6 +403,8 @@ export async function checkGiveaways(client) {
         giveaway.ended = true;
         giveaway.isEnded = true;
         giveaway.winnerIds = winners;
+        giveaway.staffSelected = staffSelected;
+        if (staffSelected) giveaway.forcedBy = selectedBy;
         giveaway.endedAt = new Date().toISOString();
 
         const markedSuccess = await markGiveawayEnded(client, giveawayId, giveaway);
@@ -389,7 +413,9 @@ export async function checkGiveaways(client) {
         }
 
         if (winners.length > 0) {
-          const winnerAnnouncement = `🎉 Congratulazioni ${winnerMentions}! Hai vinto il **${giveaway.prize || 'giveaway'}**! Perfavore contatta <@${giveaway.hostId}> per ritirare il tuo premio.`;
+          const winnerAnnouncement = staffSelected
+            ? `🎉 Congratulazioni ${winnerMentions}! Hai vinto il **${giveaway.prize || 'giveaway'}**!\n\n⚠️ *Vincitore selezionato manualmente dallo staff (<@${selectedBy}>).* Perfavore contatta <@${giveaway.hostId}> per ritirare il tuo premio.`
+            : `🎉 Congratulazioni ${winnerMentions}! Hai vinto il **${giveaway.prize || 'giveaway'}**! Perfavore contatta <@${giveaway.hostId}> per ritirare il tuo premio.`;
           const winnerPingMsg = await channel.send({ content: winnerAnnouncement });
           giveaway.winnerPingMessageId = winnerPingMsg.id;
           await markGiveawayEnded(client, giveawayId, giveaway);
