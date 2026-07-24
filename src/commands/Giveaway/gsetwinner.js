@@ -136,11 +136,12 @@ export default {
             const winnerMention = `<@${chosenUser.id}>`;
 
             if (message) {
-                const newEmbed = createGiveawayEmbed(updatedGiveaway, "reroll", newWinners);
-                const newRow = createGiveawayButtons(true);
+                // Do NOT mark the giveaway as ended here. Show the manual winner while keeping the giveaway active.
+                const newEmbed = createGiveawayEmbed(updatedGiveaway, "manual", newWinners);
+                const newRow = createGiveawayButtons(false);
 
                 await message.edit({
-                    content: "🏆 **VINCITORE** 🏆",
+                    content: "🏆 **VINCITORE (MANUALE)** 🏆",
                     embeds: [newEmbed],
                     components: [newRow],
                 });
