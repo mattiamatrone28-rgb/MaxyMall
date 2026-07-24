@@ -140,55 +140,6 @@ export default {
                 await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
 
                 logger.info(`Giveaway ended with ${winners.length} winner(s): ${messageId}`);
-
-                // Esegui operazioni non-critiche in background (fire and forget)
-                // Questo evita di bloccare la risposta all'utente
-                Promise.allSettled([
-                    // Invia DM a tutti i vincitori in parallelo (non sequenziale)
-                    ...winners.map(winnerId =>
-                        interaction.client.users.fetch(winnerId)
-                            .then(user => user.send({
-                                content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host[...]`
-                            }))
-                            .then(() => {
-                                logger.debug(`DM sent successfully to ${winnerId}`);
-                                return winnerId;
-                            })
-                            .catch(err => {
-                                logger.warn(`Could not send DM to winner ${winnerId}: ${err.message}`);
-                                throw winnerId;
-                            })
-                    ),
-                    // Log event in background
-                    logEvent({
-                        client: interaction.client,
-                        guildId: interaction.guildId,
-                        eventType: EVENT_TYPES.GIVEAWAY_WINNER,
-                        data: {
-                            description: `Giveaway terminato con ${winners.length} vincitore(i)`,
-                            channelId: channel.id,
-                            userId: interaction.user.id,
-                            fields: [
-                                {
-                                    name: 'Premio',
-                                    value: updatedGiveaway.prize || 'Premio Misterioso!',
-                                    inline: true
-                                },
-                                {
-                                    name: 'Vincitori',
-                                    value: winnerMentions,
-                                    inline: false
-                                },
-                                {
-                                    name: 'Partecipanti',
-                                    value: endResult.participantCount.toString(),
-                                    inline: true
-                                }
-                            ]
-                        }
-                    }).catch(logErr => logger.debug('Error logging giveaway winner event:', logErr))
-                ]).catch(err => logger.error('Background operations error:', err));
-
             } else {
                 await channel.send({
                     content: `Il giveaway per **${updatedGiveaway.prize}** è terminato senza partecipanti validi.`,
@@ -198,7 +149,8 @@ export default {
 
             logger.info(`Giveaway successfully ended by ${interaction.user.tag}: ${messageId}`);
 
-            return InteractionHelper.safeReply(interaction, {
+            // RISPONDI SUBITO all'utente PRIMA di qualsiasi altra operazione
+            await InteractionHelper.safeReply(interaction, {
                 embeds: [
                     successEmbed(
                         "Giveaway Terminato ✅",
@@ -207,6 +159,50 @@ export default {
                 ],
                 flags: MessageFlags.Ephemeral,
             });
+
+            // Operazioni non-critiche DOPO la risposta (fire and forget)
+            if (winners.length > 0) {
+                setImmediate(() => {
+                    Promise.allSettled([
+                        // Invia DM a tutti i vincitori in parallelo
+                        ...winners.map(winnerId =>
+                            interaction.client.users.fetch(winnerId)
+                                .then(user => user.send({
+                                    content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host[...]`
+                                }))
+                                .catch(err => logger.warn(`Could not send DM to ${winnerId}: ${err.message}`))
+                        ),
+                        // Log event
+                        logEvent({
+                            client: interaction.client,
+                            guildId: interaction.guildId,
+                            eventType: EVENT_TYPES.GIVEAWAY_WINNER,
+                            data: {
+                                description: `Giveaway terminato con ${winners.length} vincitore(i)`,
+                                channelId: channel.id,
+                                userId: interaction.user.id,
+                                fields: [
+                                    {
+                                        name: 'Premio',
+                                        value: updatedGiveaway.prize || 'Premio Misterioso!',
+                                        inline: true
+                                    },
+                                    {
+                                        name: 'Vincitori',
+                                        value: winners.map(id => `<@${id}>`).join(", "),
+                                        inline: false
+                                    },
+                                    {
+                                        name: 'Partecipanti',
+                                        value: endResult.participantCount.toString(),
+                                        inline: true
+                                    }
+                                ]
+                            }
+                        }).catch(err => logger.debug('Error logging giveaway event:', err))
+                    ]).catch(err => logger.error('Background error:', err));
+                });
+            }
 
         } catch (error) {
             await handleInteractionError(interaction, error, {
