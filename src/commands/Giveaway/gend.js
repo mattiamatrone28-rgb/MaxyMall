@@ -133,7 +133,7 @@ export default {
                     .map((id) => `<@${id}>`)
                     .join(", ");
                 const winnerPingMsg = await channel.send({
-                    content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premio!`,
+                    content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premi[...]
                     allowedMentions: { users: winners },
                 });
                 updatedGiveaway.winnerPingMessageId = winnerPingMsg.id;
@@ -141,31 +141,26 @@ export default {
 
                 logger.info(`Giveaway ended with ${winners.length} winner(s): ${messageId}`);
 
-                // Invia DM ai vincitori
-                const dmResults = { success: [], failed: [] };
-                for (const winnerId of winners) {
-                    try {
-                        const user = await interaction.client.users.fetch(winnerId);
-                        await user.send({
-                            content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host del giveaway!`,
-                        });
-                        dmResults.success.push(winnerId);
-                    } catch (dmError) {
-                        logger.warn(`Could not send DM to winner ${winnerId}: ${dmError.message}`);
-                        dmResults.failed.push(winnerId);
-                    }
-                }
-
-                // Salviamo un riassunto delle notifiche DM (opzionale)
-                try {
-                    updatedGiveaway.dmNotified = dmResults.success;
-                    await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
-                } catch (saveErr) {
-                    logger.debug('Could not save DM notification state on giveaway:', saveErr);
-                }
-
-                try {
-                    await logEvent({
+                // Esegui operazioni non-critiche in background (fire and forget)
+                // Questo evita di bloccare la risposta all'utente
+                Promise.allSettled([
+                    // Invia DM a tutti i vincitori in parallelo (non sequenziale)
+                    ...winners.map(winnerId =>
+                        interaction.client.users.fetch(winnerId)
+                            .then(user => user.send({
+                                content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host[...]`
+                            }))
+                            .then(() => {
+                                logger.debug(`DM sent successfully to ${winnerId}`);
+                                return winnerId;
+                            })
+                            .catch(err => {
+                                logger.warn(`Could not send DM to winner ${winnerId}: ${err.message}`);
+                                throw winnerId;
+                            })
+                    ),
+                    // Log event in background
+                    logEvent({
                         client: interaction.client,
                         guildId: interaction.guildId,
                         eventType: EVENT_TYPES.GIVEAWAY_WINNER,
@@ -188,23 +183,12 @@ export default {
                                     name: 'Partecipanti',
                                     value: endResult.participantCount.toString(),
                                     inline: true
-                                },
-                                {
-                                    name: 'DM inviati',
-                                    value: `${dmResults.success.length}`,
-                                    inline: true
-                                },
-                                {
-                                    name: 'DM falliti',
-                                    value: `${dmResults.failed.length}`,
-                                    inline: true
                                 }
                             ]
                         }
-                    });
-                } catch (logError) {
-                    logger.debug('Error logging giveaway winner event:', logError);
-                }
+                    }).catch(logErr => logger.debug('Error logging giveaway winner event:', logErr))
+                ]).catch(err => logger.error('Background operations error:', err));
+
             } else {
                 await channel.send({
                     content: `Il giveaway per **${updatedGiveaway.prize}** è terminato senza partecipanti validi.`,
@@ -218,7 +202,7 @@ export default {
                 embeds: [
                     successEmbed(
                         "Giveaway Terminato ✅",
-                        `Giveaway per **${updatedGiveaway.prize}** terminato con successo in ${channel}. ${winners.length} vincitore(i) selezionato(i) da ${endResult.participantCount} partecipanti.`,
+                        `Giveaway per **${updatedGiveaway.prize}** terminato con successo in ${channel}. ${winners.length} vincitore(i) selezionato(i) da ${endResult.participantCount} partecipant[...]
                     ),
                 ],
                 flags: MessageFlags.Ephemeral,
