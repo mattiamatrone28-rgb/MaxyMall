@@ -133,7 +133,7 @@ export default {
                     .map((id) => `<@${id}>`)
                     .join(", ");
                 const winnerPingMsg = await channel.send({
-                    content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premio.`,
+                    content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premio!`,
                     allowedMentions: { users: winners },
                 });
                 updatedGiveaway.winnerPingMessageId = winnerPingMsg.id;
@@ -147,7 +147,7 @@ export default {
                     try {
                         const user = await interaction.client.users.fetch(winnerId);
                         await user.send({
-                            content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host <@${updatedGiveaway.hostId}>.`,
+                            content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host del giveaway!`,
                         });
                         dmResults.success.push(winnerId);
                     } catch (dmError) {
@@ -170,32 +170,32 @@ export default {
                         guildId: interaction.guildId,
                         eventType: EVENT_TYPES.GIVEAWAY_WINNER,
                         data: {
-                            description: `Giveaway ended with ${winners.length} winner(s)`,
+                            description: `Giveaway terminato con ${winners.length} vincitore(i)`,
                             channelId: channel.id,
                             userId: interaction.user.id,
                             fields: [
                                 {
-                                    name: 'Prize',
-                                    value: updatedGiveaway.prize || 'Mystery Prize!',
+                                    name: 'Premio',
+                                    value: updatedGiveaway.prize || 'Premio Misterioso!',
                                     inline: true
                                 },
                                 {
-                                    name: 'Winners',
+                                    name: 'Vincitori',
                                     value: winnerMentions,
                                     inline: false
                                 },
                                 {
-                                    name: 'Entries',
+                                    name: 'Partecipanti',
                                     value: endResult.participantCount.toString(),
                                     inline: true
                                 },
                                 {
-                                    name: 'DMs sent',
+                                    name: 'DM inviati',
                                     value: `${dmResults.success.length}`,
                                     inline: true
                                 },
                                 {
-                                    name: 'DMs failed',
+                                    name: 'DM falliti',
                                     value: `${dmResults.failed.length}`,
                                     inline: true
                                 }
@@ -217,8 +217,8 @@ export default {
             return InteractionHelper.safeReply(interaction, {
                 embeds: [
                     successEmbed(
-                        "Giveaway Ended ✅",
-                        `Successfully ended the giveaway for **${updatedGiveaway.prize}** in ${channel}. Selected ${winners.length} winner(s) from ${endResult.participantCount} entries.`,
+                        "Giveaway Terminato ✅",
+                        `Giveaway per **${updatedGiveaway.prize}** terminato con successo in ${channel}. ${winners.length} vincitore(i) selezionato(i) da ${endResult.participantCount} partecipanti.`,
                     ),
                 ],
                 flags: MessageFlags.Ephemeral,
