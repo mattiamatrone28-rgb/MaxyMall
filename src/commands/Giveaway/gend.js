@@ -147,7 +147,7 @@ export default {
                     try {
                         const user = await interaction.client.users.fetch(winnerId);
                         await user.send({
-                            content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host <@${updatedGiveaway.hostId}>.`,
+                            content: `🎉 CONGRATULAZIONI! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host <@${updatedGiveaway.hostId}>.`,
                         });
                         dmResults.success.push(winnerId);
                     } catch (dmError) {
