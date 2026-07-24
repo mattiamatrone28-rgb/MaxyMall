@@ -81,6 +81,7 @@ export default {
             const updatedGiveaway = endResult.giveaway;
             const winners = endResult.winners;
 
+            // Fetch channel prima di rispondere (veloce)
             const channel = await interaction.client.channels.fetch(
                 updatedGiveaway.channelId,
             ).catch(err => {
@@ -113,43 +114,7 @@ export default {
                 );
             }
 
-            await saveGiveaway(
-                interaction.client,
-                interaction.guildId,
-                updatedGiveaway,
-            );
-
-            const newEmbed = createGiveawayEmbed(updatedGiveaway, "ended", winners);
-            const newRow = createGiveawayButtons(true);
-
-            await message.edit({
-                content: "🎉 **GIVEAWAY TERMINATO** 🎉",
-                embeds: [newEmbed],
-                components: [newRow],
-            });
-
-            if (winners.length > 0) {
-                const winnerMentions = winners
-                    .map((id) => `<@${id}>`)
-                    .join(", ");
-                const winnerPingMsg = await channel.send({
-                    content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premi[...]
-                    allowedMentions: { users: winners },
-                });
-                updatedGiveaway.winnerPingMessageId = winnerPingMsg.id;
-                await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
-
-                logger.info(`Giveaway ended with ${winners.length} winner(s): ${messageId}`);
-            } else {
-                await channel.send({
-                    content: `Il giveaway per **${updatedGiveaway.prize}** è terminato senza partecipanti validi.`,
-                });
-                logger.info(`Giveaway ended with no winners: ${messageId}`);
-            }
-
-            logger.info(`Giveaway successfully ended by ${interaction.user.tag}: ${messageId}`);
-
-            // RISPONDI SUBITO all'utente PRIMA di qualsiasi altra operazione
+            // ✅ RISPONDI ISTANTANEAMENTE PRIMA di qualsiasi await
             await InteractionHelper.safeReply(interaction, {
                 embeds: [
                     successEmbed(
@@ -160,49 +125,97 @@ export default {
                 flags: MessageFlags.Ephemeral,
             });
 
-            // Operazioni non-critiche DOPO la risposta (fire and forget)
-            if (winners.length > 0) {
-                setImmediate(() => {
-                    Promise.allSettled([
-                        // Invia DM a tutti i vincitori in parallelo
-                        ...winners.map(winnerId =>
-                            interaction.client.users.fetch(winnerId)
-                                .then(user => user.send({
-                                    content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host[...]`
-                                }))
-                                .catch(err => logger.warn(`Could not send DM to ${winnerId}: ${err.message}`))
-                        ),
+            // 🚀 TUTTE LE OPERAZIONI PESANTI IN BACKGROUND (senza await)
+            setImmediate(async () => {
+                try {
+                    // Salva il giveaway
+                    await saveGiveaway(
+                        interaction.client,
+                        interaction.guildId,
+                        updatedGiveaway,
+                    );
+
+                    // Aggiorna il messaggio del giveaway
+                    const newEmbed = createGiveawayEmbed(updatedGiveaway, "ended", winners);
+                    const newRow = createGiveawayButtons(true);
+
+                    await message.edit({
+                        content: "🎉 **GIVEAWAY TERMINATO** 🎉",
+                        embeds: [newEmbed],
+                        components: [newRow],
+                    });
+
+                    // Annuncia i vincitori nel canale
+                    if (winners.length > 0) {
+                        const winnerMentions = winners
+                            .map((id) => `<@${id}>`)
+                            .join(", ");
+                        
+                        const winnerPingMsg = await channel.send({
+                            content: `🎉 CONGRATULAZIONI ${winnerMentions}! Hai vinto il **${updatedGiveaway.prize}** giveaway! Perfavore contatta <@${updatedGiveaway.hostId}> per ricevere il tuo premio!`,
+                            allowedMentions: { users: winners },
+                        });
+                        
+                        updatedGiveaway.winnerPingMessageId = winnerPingMsg.id;
+                        await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
+
+                        logger.info(`Giveaway ended with ${winners.length} winner(s): ${messageId}`);
+
+                        // Invia DM ai vincitori in parallelo
+                        await Promise.allSettled(
+                            winners.map(winnerId =>
+                                interaction.client.users.fetch(winnerId)
+                                    .then(user => user.send({
+                                        content: `🎉 Congratulazioni! Hai vinto il giveaway **${updatedGiveaway.prize}** su ${interaction.guild?.name || 'il server'}. Per ritirare il premio contatta l'host!`
+                                    }))
+                                    .catch(err => logger.warn(`Could not send DM to ${winnerId}: ${err.message}`))
+                            )
+                        );
+
                         // Log event
-                        logEvent({
-                            client: interaction.client,
-                            guildId: interaction.guildId,
-                            eventType: EVENT_TYPES.GIVEAWAY_WINNER,
-                            data: {
-                                description: `Giveaway terminato con ${winners.length} vincitore(i)`,
-                                channelId: channel.id,
-                                userId: interaction.user.id,
-                                fields: [
-                                    {
-                                        name: 'Premio',
-                                        value: updatedGiveaway.prize || 'Premio Misterioso!',
-                                        inline: true
-                                    },
-                                    {
-                                        name: 'Vincitori',
-                                        value: winners.map(id => `<@${id}>`).join(", "),
-                                        inline: false
-                                    },
-                                    {
-                                        name: 'Partecipanti',
-                                        value: endResult.participantCount.toString(),
-                                        inline: true
-                                    }
-                                ]
-                            }
-                        }).catch(err => logger.debug('Error logging giveaway event:', err))
-                    ]).catch(err => logger.error('Background error:', err));
-                });
-            }
+                        try {
+                            await logEvent({
+                                client: interaction.client,
+                                guildId: interaction.guildId,
+                                eventType: EVENT_TYPES.GIVEAWAY_WINNER,
+                                data: {
+                                    description: `Giveaway terminato con ${winners.length} vincitore(i)`,
+                                    channelId: channel.id,
+                                    userId: interaction.user.id,
+                                    fields: [
+                                        {
+                                            name: 'Premio',
+                                            value: updatedGiveaway.prize || 'Premio Misterioso!',
+                                            inline: true
+                                        },
+                                        {
+                                            name: 'Vincitori',
+                                            value: winnerMentions,
+                                            inline: false
+                                        },
+                                        {
+                                            name: 'Partecipanti',
+                                            value: endResult.participantCount.toString(),
+                                            inline: true
+                                        }
+                                    ]
+                                }
+                            });
+                        } catch (logErr) {
+                            logger.debug('Error logging giveaway event:', logErr);
+                        }
+                    } else {
+                        await channel.send({
+                            content: `Il giveaway per **${updatedGiveaway.prize}** è terminato senza partecipanti validi.`,
+                        });
+                        logger.info(`Giveaway ended with no winners: ${messageId}`);
+                    }
+
+                    logger.info(`Giveaway successfully ended by ${interaction.user.tag}: ${messageId}`);
+                } catch (backgroundErr) {
+                    logger.error('Error in background giveaway operations:', backgroundErr);
+                }
+            });
 
         } catch (error) {
             await handleInteractionError(interaction, error, {
