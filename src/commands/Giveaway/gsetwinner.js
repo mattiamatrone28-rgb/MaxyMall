@@ -160,12 +160,12 @@ export default {
 
             if (existingPingMsg) {
                 await existingPingMsg.edit({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per r[...]
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Per favore, contatta l'host <@${giveaway.hostId}> per richiedere il premio.`,
                 });
             } else {
                 const newPingMsg = await channel.send({
-                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Perfavore, contatta l'host <@${giveaway.hostId}> per r[...]
-                })
+                    content: `🏆 **VINCITORE** 🏆 CONGRATULAZIONI ${winnerMention}! Sei il vincitore del **${giveaway.prize}** giveaway! Per favore, contatta l'host <@${giveaway.hostId}> per richiedere il premio.`,
+                });
                 updatedGiveaway.winnerPingMessageId = newPingMsg.id;
                 await saveGiveaway(interaction.client, interaction.guildId, updatedGiveaway);
             }
